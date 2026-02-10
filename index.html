@@ -111,7 +111,7 @@ mark{background:rgba(79,195,247,.3);color:#ffee58;border-radius:2px;padding:0 1p
 </div>
 
 <div class="footer">
-    <span>GPO Search Tool v1.1.2</span>
+    <span>GPO Search Tool v1.1.3</span>
     <a href="https://github.com/ThaFridge/GPOSearch" target="_blank">GitHub</a>
 </div>
 
@@ -177,11 +177,11 @@ function extractGpoContent(html) {
     const dt = doc.getElementById('dtstamp');
     if (dt) add(dt.textContent, 'General');
 
-    const summary = doc.querySelector('.gposummary');
-    if (summary) {
-        // Walk section hierarchy for visible text + section context
+    // Walk full body — GPO content lives as siblings of .gposummary, not inside it
+    const root = doc.body;
+    if (root) {
         const crumbs = [];
-        const allDivs = summary.getElementsByTagName('div');
+        const allDivs = root.getElementsByTagName('div');
         for (const div of allDivs) {
             const cls = div.className || '';
             const classes = cls.split(/\s+/);
@@ -208,23 +208,22 @@ function extractGpoContent(html) {
         }
 
         // gpmc_ attributes (extra searchable content not in visible text)
-        summary.querySelectorAll('span.explainlink').forEach(el => {
+        root.querySelectorAll('span.explainlink').forEach(el => {
+            const sn = el.getAttribute('gpmc_settingname') || '';
             const sp = el.getAttribute('gpmc_settingpath') || '';
             const desc = el.getAttribute('gpmc_settingdescription') || '';
             const sup = el.getAttribute('gpmc_supported') || '';
+            if (sn) add(sn, sp || 'Settings');
             if (sp) { add(sp, sp); matchTags(sp, tags); }
             if (desc) add(cleanDesc(desc), sp || 'Settings');
             if (sup) add(sup, sp || 'Settings');
         });
     }
 
-    // Fallback for non-GPMC HTML
-    if (!segments.length) {
-        const body = doc.body;
-        if (body) {
-            body.querySelectorAll('script, style').forEach(el => el.remove());
-            add(body.textContent, '');
-        }
+    // Fallback for non-GPMC HTML (no he* structure found)
+    if (!segments.length && root) {
+        root.querySelectorAll('script, style').forEach(el => el.remove());
+        add(root.textContent, '');
     }
 
     // Build flat text with section index
