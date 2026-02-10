@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<title>GPO Search Tool</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#1a1a2e;color:#e0e0e0;min-height:100vh}
+.header{background:#16213e;border-bottom:1px solid #2a3a5c;padding:16px 24px;position:sticky;top:0;z-index:10}
+.header h1{font-size:20px;color:#4fc3f7;margin-bottom:12px;display:flex;align-items:center;gap:12px}
+.header h1 small{font-size:12px;color:#a0a8c0;font-weight:400}
+.search-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.search-wrap{flex:1;min-width:250px;position:relative}
+.search-wrap input{width:100%;padding:10px 36px 10px 14px;background:#1a1a2e;border:1px solid #2a3a5c;border-radius:8px;color:#e0e0e0;font-size:15px;outline:none}
+.search-wrap input:focus{border-color:#4fc3f7}
+.search-wrap .clear{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#555;font-size:18px;cursor:pointer;padding:0 4px;display:none}
+.search-wrap .clear:hover{color:#ef5350}
+.search-wrap input:not(:placeholder-shown)~.clear{display:block}
+button{padding:8px 16px;background:#0f3460;border:1px solid #2a3a5c;border-radius:8px;color:#e0e0e0;cursor:pointer;font-size:13px;white-space:nowrap}
+button:hover:not(:disabled){border-color:#4fc3f7;color:#4fc3f7}
+button:disabled{opacity:.35;cursor:default}
+.btn-accent{background:#4fc3f7;color:#1a1a2e;border-color:#4fc3f7;font-weight:600}
+.btn-accent:hover:not(:disabled){background:#81d4fa;color:#1a1a2e}
+.toggle{padding:8px 12px}
+.toggle.on{background:#0f3460;border-color:#4fc3f7;color:#4fc3f7}
+.status-bar{padding:8px 24px;background:#16213e;border-bottom:1px solid #2a3a5c;font-size:13px;color:#a0a8c0;display:flex;justify-content:space-between;align-items:center}
+#results{padding:12px 24px}
+.card{background:#1e2746;border:1px solid #2a3a5c;border-radius:8px;padding:12px 16px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
+.card:hover{border-color:#4fc3f7}
+.card-name{font-size:14px;font-weight:600;margin-bottom:4px}
+.card-meta{font-size:12px;color:#a0a8c0;margin-bottom:6px}
+.card-preview{font-size:12px;color:#666;line-height:1.5;max-height:36px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-match{font-size:12px;color:#ccc;line-height:1.6;background:#141a2e;border-radius:4px;padding:6px 10px;max-height:120px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+mark{background:rgba(79,195,247,.3);color:#ffee58;border-radius:2px;padding:0 1px}
+.welcome{text-align:center;padding:80px 24px;color:#a0a8c0}
+.welcome h2{color:#4fc3f7;margin-bottom:12px;font-size:24px}
+.welcome p{margin-bottom:8px;max-width:500px;margin-left:auto;margin-right:auto}
+.progress{width:100%;height:4px;background:#2a3a5c;border-radius:2px;margin-top:8px;overflow:hidden;display:none}
+.progress .fill{height:100%;background:#4fc3f7;border-radius:2px;transition:width .2s;width:0}
+.pagination{display:flex;justify-content:center;gap:6px;padding:16px}
+.pagination button{padding:6px 12px}
+.pagination button.active{background:#0f3460;border-color:#4fc3f7;color:#4fc3f7}
+#detailOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100}
+#detailPanel{position:fixed;top:0;right:0;bottom:0;width:55%;min-width:400px;max-width:800px;background:#16213e;border-left:1px solid #2a3a5c;overflow-y:auto;padding:24px;z-index:101}
+#detailPanel .close{position:absolute;top:12px;right:16px;background:none;border:none;color:#a0a8c0;font-size:24px;cursor:pointer}
+#detailPanel .close:hover{color:#fff}
+#detailPanel h2{color:#4fc3f7;font-size:18px;margin-bottom:16px;padding-right:40px;word-break:break-word}
+#detailPanel iframe{width:100%;height:calc(100% - 60px);border:none;border-radius:6px;background:#fff}
+@media(max-width:700px){#detailPanel{width:100%;min-width:0}}
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>GPO Search Tool <small id="fileCount"></small></h1>
+    <div class="search-row">
+        <button class="btn-accent" id="btnLoad">Map laden</button>
+        <div class="search-wrap">
+            <input type="text" id="q" placeholder="Zoek op keywords... (bijv. BitLocker, USB, Chrome, HKEY_LOCAL)" disabled>
+            <button class="clear" id="btnClear" type="button">&times;</button>
+        </div>
+        <button class="toggle" id="btnRegex" title="Regex aan/uit" disabled>.*</button>
+        <button class="toggle" id="btnCase" title="Hoofdlettergevoelig" disabled>Aa</button>
+        <button id="btnSearch" disabled>Zoeken</button>
+    </div>
+    <div class="progress" id="progress"><div class="fill" id="progressFill"></div></div>
+    <input type="file" id="folderPicker" webkitdirectory multiple style="display:none">
+</div>
+
+<div class="status-bar">
+    <span id="statusText">Klik "Map laden" en selecteer de GPO map</span>
+    <span id="statusRight"></span>
+</div>
+
+<div id="results">
+    <div class="welcome">
+        <h2>GPO Search Tool</h2>
+        <p>Doorzoek al je GPMC HTML-exports op keywords, policy namen, registry paden en meer.</p>
+        <p>1. Klik <strong>"Map laden"</strong> en selecteer de <strong>GPO</strong> map</p>
+        <p>2. Wacht tot alle bestanden ingelezen zijn</p>
+        <p>3. Begin te typen om te zoeken</p>
+    </div>
+</div>
+
+<div id="detailOverlay" onclick="closeDetail()"></div>
+<div id="detailPanel" style="display:none">
+    <button class="close" onclick="closeDetail()">&times;</button>
+    <h2 id="detailTitle"></h2>
+    <iframe id="detailFrame"></iframe>
+</div>
+
+<script>
+const PAGE_SIZE = 50;
+let files = [];
+let results = [];
+let page = 0;
+let isSearching = false; // true = zoekresultaten, false = browse modus
+
+const $ = id => document.getElementById(id);
+const q = $('q');
+const statusText = $('statusText');
+const statusRight = $('statusRight');
+const resultsDiv = $('results');
+
+$('btnRegex').onclick = function(){ this.classList.toggle('on'); doSearch(); };
+$('btnCase').onclick = function(){ this.classList.toggle('on'); doSearch(); };
+
+$('btnLoad').onclick = () => $('folderPicker').click();
+
+// Clear knop
+$('btnClear').onclick = function() {
+    q.value = '';
+    this.style.display = 'none';
+    showAll();
+    q.focus();
+};
+
+$('folderPicker').onchange = async function() {
+    const picked = Array.from(this.files).filter(f =>
+        f.name.endsWith('.html') && !f.name.startsWith('._')
+    );
+    if (!picked.length) {
+        statusText.textContent = 'Geen HTML bestanden gevonden in deze map.';
+        return;
+    }
+
+    files = [];
+    $('progress').style.display = 'block';
+    $('btnLoad').disabled = true;
+    q.disabled = true;
+    statusText.textContent = `Inlezen: 0 / ${picked.length}`;
+    resultsDiv.innerHTML = '';
+
+    for (let i = 0; i < picked.length; i++) {
+        const f = picked[i];
+        try {
+            const buf = await f.arrayBuffer();
+            const bytes = new Uint8Array(buf);
+            let text;
+            if (bytes[0] === 0xFF && bytes[1] === 0xFE) {
+                text = new TextDecoder('utf-16le').decode(buf);
+            } else if (bytes[0] === 0xFE && bytes[1] === 0xFF) {
+                text = new TextDecoder('utf-16be').decode(buf);
+            } else {
+                text = new TextDecoder('utf-16le').decode(buf);
+                if (text.indexOf('<html') === -1 && text.indexOf('<HTML') === -1) {
+                    text = new TextDecoder('utf-8').decode(buf);
+                }
+            }
+
+            let clean = text.replace(/<script[\s\S]*?<\/script>/gi, '');
+            clean = clean.replace(/<style[\s\S]*?<\/style>/gi, '');
+            clean = clean.replace(/<[^>]+>/g, ' ');
+            clean = clean.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+                         .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ');
+            clean = clean.replace(/\s+/g, ' ').trim();
+
+            files.push({ name: f.name, text: clean, blob: f });
+        } catch(e) {}
+
+        if ((i+1) % 50 === 0 || i === picked.length - 1) {
+            $('progressFill').style.width = Math.round(((i+1) / picked.length) * 100) + '%';
+            statusText.textContent = `Inlezen: ${i+1} / ${picked.length}`;
+            await new Promise(r => setTimeout(r, 0));
+        }
+    }
+
+    $('progress').style.display = 'none';
+    $('btnLoad').disabled = false;
+    q.disabled = false;
+    $('btnSearch').disabled = false;
+    $('btnRegex').disabled = false;
+    $('btnCase').disabled = false;
+    $('fileCount').textContent = `${files.length} bestanden geladen`;
+    q.focus();
+
+    showAll();
+};
+
+function showAll() {
+    isSearching = false;
+    results = files.map(f => ({ name: f.name, matchCount: 0, snippets: [], blob: f.blob, preview: f.text.slice(0, 150) }));
+    results.sort((a, b) => a.name.localeCompare(b.name));
+    statusText.textContent = `${results.length} GPO bestanden`;
+    statusRight.textContent = '';
+    page = 0;
+    renderPage();
+}
+
+function doSearch() {
+    const query = q.value.trim();
+    if (!files.length) return;
+
+    if (!query) { showAll(); return; }
+
+    isSearching = true;
+    const useRegex = $('btnRegex').classList.contains('on');
+    const caseSens = $('btnCase').classList.contains('on');
+    const t0 = performance.now();
+
+    let re;
+    try {
+        if (useRegex) {
+            re = new RegExp(query, caseSens ? 'g' : 'gi');
+        } else {
+            const terms = query.split(/\s+/).filter(Boolean);
+            const escaped = terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+            re = new RegExp(escaped.join('|'), caseSens ? 'g' : 'gi');
+            var andCheck = terms.map(t => caseSens ? t : t.toLowerCase());
+        }
+    } catch(e) {
+        resultsDiv.innerHTML = `<div class="welcome"><p style="color:#ef5350">Ongeldige regex: ${esc(e.message)}</p></div>`;
+        return;
+    }
+
+    results = [];
+    for (const f of files) {
+        if (andCheck) {
+            const src = caseSens ? f.text : f.text.toLowerCase();
+            if (!andCheck.every(t => src.includes(t))) continue;
+        }
+
+        re.lastIndex = 0;
+        const matches = [];
+        let m;
+        while ((m = re.exec(f.text)) !== null && matches.length < 10) {
+            matches.push({ idx: m.index, len: m[0].length, val: m[0] });
+            if (!re.global) break;
+        }
+
+        if (matches.length > 0) {
+            const snippets = [];
+            for (const mt of matches.slice(0, 5)) {
+                const start = Math.max(0, mt.idx - 80);
+                const end = Math.min(f.text.length, mt.idx + mt.len + 80);
+                let snip = f.text.slice(start, end);
+                if (start > 0) snip = '...' + snip;
+                if (end < f.text.length) snip += '...';
+                snippets.push(snip);
+            }
+            results.push({ name: f.name, matchCount: matches.length, snippets, blob: f.blob });
+        }
+    }
+
+    results.sort((a, b) => b.matchCount - a.matchCount);
+
+    const elapsed = (performance.now() - t0).toFixed(1);
+    statusText.textContent = `${results.length} resultaten van ${files.length} bestanden`;
+    statusRight.textContent = elapsed + 'ms';
+
+    page = 0;
+    renderPage();
+}
+
+function renderPage() {
+    const query = q.value.trim();
+    const useRegex = $('btnRegex').classList.contains('on');
+    const caseSens = $('btnCase').classList.contains('on');
+    const start = page * PAGE_SIZE;
+    const end = Math.min(start + PAGE_SIZE, results.length);
+    const slice = results.slice(start, end);
+
+    let hlRe = null;
+    if (query && isSearching) {
+        try {
+            if (useRegex) {
+                hlRe = new RegExp('(' + query + ')', caseSens ? 'g' : 'gi');
+            } else {
+                const terms = query.split(/\s+/).filter(Boolean).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+                if (terms.length) hlRe = new RegExp('(' + terms.join('|') + ')', caseSens ? 'g' : 'gi');
+            }
+        } catch(e) { hlRe = null; }
+    }
+
+    // Pagina indicator
+    const total = results.length;
+    const rangeText = total > 0 ? `${start + 1}-${end} van ${total}` : '0';
+
+    let html = '';
+    for (const r of slice) {
+        if (isSearching) {
+            // Zoek-modus: toon matches
+            const snippetHtml = r.snippets.map(s => {
+                let h = esc(s);
+                if (hlRe) h = h.replace(hlRe, '<mark>$1</mark>');
+                return h;
+            }).join('\n');
+
+            html += `<div class="card" onclick="openDetail('${escAttr(r.name)}')">
+                <div class="card-name">${hlRe ? esc(r.name).replace(hlRe, '<mark>$1</mark>') : esc(r.name)}</div>
+                <div class="card-meta">${r.matchCount} match${r.matchCount !== 1 ? 'es' : ''}</div>
+                <div class="card-match">${snippetHtml}</div>
+            </div>`;
+        } else {
+            // Browse-modus: toon naam + preview
+            html += `<div class="card" onclick="openDetail('${escAttr(r.name)}')">
+                <div class="card-name">${esc(r.name)}</div>
+                <div class="card-preview">${esc(r.preview || '')}</div>
+            </div>`;
+        }
+    }
+
+    // Pagination
+    const totalPages = Math.ceil(total / PAGE_SIZE);
+    if (totalPages > 1) {
+        html += '<div class="pagination">';
+        html += `<button ${page===0?'disabled':''} onclick="goPage(${page-1})">&#9664;</button>`;
+        const maxBtns = 9;
+        let s = Math.max(0, page - Math.floor(maxBtns/2));
+        let e = Math.min(totalPages, s + maxBtns);
+        if (e - s < maxBtns) s = Math.max(0, e - maxBtns);
+        for (let i = s; i < e; i++) html += `<button class="${i===page?'active':''}" onclick="goPage(${i})">${i+1}</button>`;
+        html += `<button ${page>=totalPages-1?'disabled':''} onclick="goPage(${page+1})">&#9654;</button>`;
+        html += '</div>';
+    }
+
+    if (!slice.length) {
+        html = '<div class="welcome"><p>Geen resultaten gevonden.</p></div>';
+    }
+
+    statusRight.textContent = isSearching ? statusRight.textContent : rangeText;
+    if (!isSearching) statusText.textContent = `${total} GPO bestanden`;
+    else statusRight.textContent += `  |  ${rangeText}`;
+
+    resultsDiv.innerHTML = html;
+    resultsDiv.scrollTop = 0;
+}
+
+function goPage(p) { page = p; renderPage(); }
+
+function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+    return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+}
+
+function openDetail(name) {
+    const f = files.find(x => x.name === name);
+    if (!f) return;
+    $('detailTitle').textContent = name;
+    const url = URL.createObjectURL(f.blob);
+    $('detailFrame').src = url;
+    $('detailPanel').style.display = 'block';
+    $('detailOverlay').style.display = 'block';
+}
+
+function closeDetail() {
+    $('detailPanel').style.display = 'none';
+    $('detailOverlay').style.display = 'none';
+    const frame = $('detailFrame');
+    URL.revokeObjectURL(frame.src);
+    frame.src = '';
+}
+
+// Live zoeken met debounce
+let debounce;
+q.addEventListener('input', () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(doSearch, 300);
+});
+q.addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(debounce); doSearch(); } });
+$('btnSearch').onclick = doSearch;
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeDetail();
+    if (e.key === '/' && document.activeElement !== q) { e.preventDefault(); q.focus(); }
+});
+</script>
+</body>
+</html>
