@@ -24,13 +24,21 @@ button:disabled{opacity:.35;cursor:default}
 .toggle{padding:8px 12px}
 .toggle.on{background:#0f3460;border-color:#4fc3f7;color:#4fc3f7}
 .status-bar{padding:8px 24px;background:#16213e;border-bottom:1px solid #2a3a5c;font-size:13px;color:#a0a8c0;display:flex;justify-content:space-between;align-items:center}
+.filters{padding:6px 24px;background:#141e33;border-bottom:1px solid #2a3a5c;display:none;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{padding:3px 10px;background:#0f3460;border:1px solid #2a3a5c;border-radius:14px;color:#a0a8c0;font-size:11px;cursor:pointer;white-space:nowrap;transition:all .15s}
+.chip:hover{border-color:#4fc3f7;color:#4fc3f7}
+.chip.on{background:#1a3a5c;border-color:#4fc3f7;color:#4fc3f7}
+.chip .cnt{opacity:.5;margin-left:3px;font-size:10px}
+.chip-clear{color:#ef5350;border-color:#3a2020}
+.chip-clear:hover{border-color:#ef5350;color:#ef5350}
 #results{padding:12px 24px}
 .card{background:#1e2746;border:1px solid #2a3a5c;border-radius:8px;padding:12px 16px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
 .card:hover{border-color:#4fc3f7}
 .card-name{font-size:14px;font-weight:600;margin-bottom:4px}
 .card-meta{font-size:12px;color:#a0a8c0;margin-bottom:6px}
 .card-preview{font-size:12px;color:#666;line-height:1.5;max-height:36px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.card-match{font-size:12px;color:#ccc;line-height:1.6;background:#141a2e;border-radius:4px;padding:6px 10px;max-height:120px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+.card-match{font-size:12px;color:#ccc;line-height:1.6;background:#141a2e;border-radius:4px;padding:6px 10px;max-height:160px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+.card-section{font-size:10px;color:#4fc3f7;opacity:.65;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 mark{background:rgba(79,195,247,.3);color:#ffee58;border-radius:2px;padding:0 1px}
 .welcome{text-align:center;padding:80px 24px;color:#a0a8c0}
 .welcome h2{color:#4fc3f7;margin-bottom:12px;font-size:24px}
@@ -57,6 +65,9 @@ mark{background:rgba(79,195,247,.3);color:#ffee58;border-radius:2px;padding:0 1p
 #detailPanel h2{color:#4fc3f7;font-size:18px;margin-bottom:16px;padding-right:40px;word-break:break-word}
 #detailPanel iframe{width:100%;height:calc(100% - 60px);border:none;border-radius:6px;background:#fff}
 @media(max-width:700px){#detailPanel{width:100%;min-width:0}}
+.footer{position:fixed;bottom:0;left:0;right:0;padding:6px 24px;background:#111627;border-top:1px solid #1e2a45;font-size:11px;color:#555;display:flex;justify-content:space-between;z-index:9}
+.footer a{color:#555;text-decoration:none}
+.footer a:hover{color:#4fc3f7}
 </style>
 </head>
 <body>
@@ -82,6 +93,8 @@ mark{background:rgba(79,195,247,.3);color:#ffee58;border-radius:2px;padding:0 1p
     <span id="statusRight"></span>
 </div>
 
+<div id="filters" class="filters"></div>
+
 <div id="results">
     <div class="welcome" id="welcome">
         <h2>GPO Search Tool</h2>
@@ -93,15 +106,13 @@ mark{background:rgba(79,195,247,.3);color:#ffee58;border-radius:2px;padding:0 1p
             <div class="codebox-header">
                 <span class="codebox-label">PowerShell — GPO's exporteren als HTML</span>
                 <button class="codebox-copy" onclick="copyCode(this)" type="button">Kopieer</button>
-            </div><span class="comment"># Exporteer alle GPO's als losse HTML-bestanden naar C:\GPO-Export</span>
-<span class="var">$exportPath</span> = <span class="str">"C:\GPO-Export"</span>
-<span class="cmd">New-Item</span> <span class="param">-Path</span> <span class="var">$exportPath</span> <span class="param">-ItemType</span> Directory <span class="param">-Force</span>
-
-<span class="cmd">Get-GPO</span> <span class="param">-All</span> | <span class="cmd">ForEach-Object</span> {
-    <span class="var">$name</span> = <span class="var">$_</span>.DisplayName <span class="param">-replace</span> <span class="str">'[\\/:*?"&lt;&gt;|]'</span>, <span class="str">'_'</span>
-    <span class="cmd">Get-GPOReport</span> <span class="param">-Guid</span> <span class="var">$_</span>.Id <span class="param">-ReportType</span> Html <span class="param">-Path</span> <span class="str">"<span class="var">$exportPath</span>\<span class="var">$name</span>.html"</span>
-}</div>
+            </div><span class="cmd">mkdir</span> <span class="str">C:\GPO-Export</span> <span class="param">-Force</span>; <span class="cmd">Get-GPO</span> <span class="param">-All</span> | <span class="cmd">%</span>{<span class="cmd">Get-GPOReport</span> <span class="param">-Guid</span> <span class="var">$_</span>.Id <span class="param">-ReportType</span> Html <span class="param">-Path</span> <span class="str">"C:\GPO-Export\$(<span class="var">$_</span>.DisplayName <span class="param">-replace</span> <span class="str">'[\\/:*?"&lt;&gt;|]'</span>,<span class="str">'_'</span>).html"</span>}</div>
     </div>
+</div>
+
+<div class="footer">
+    <span>GPO Search Tool v1.1.0</span>
+    <a href="https://github.com/ThaFridge/GPOSearch" target="_blank">GitHub</a>
 </div>
 
 <div id="detailOverlay" onclick="closeDetail()"></div>
@@ -112,11 +123,139 @@ mark{background:rgba(79,195,247,.3);color:#ffee58;border-radius:2px;padding:0 1p
 </div>
 
 <script>
+// --- Tag detection rules ---
+const TAG_RULES = [
+    [/BitLocker/i, 'BitLocker'],
+    [/Google\s*Chrome/i, 'Chrome'],
+    [/Microsoft\s*Edge/i, 'Edge'],
+    [/Firewall/i, 'Firewall'],
+    [/OneDrive/i, 'OneDrive'],
+    [/Internet\s*Explorer/i, 'IE'],
+    [/Windows\s*Update/i, 'Windows Update'],
+    [/Remote\s*Desktop/i, 'Remote Desktop'],
+    [/Removable\s*Storage/i, 'USB'],
+    [/Screen\s*Saver/i, 'Screensaver'],
+    [/\bZoom\b/i, 'Zoom'],
+    [/PowerShell/i, 'PowerShell'],
+    [/\bLAPS\b/, 'LAPS'],
+    [/\bVPN\b|AlwaysOnVPN/i, 'VPN'],
+    [/\bPrinter/i, 'Printers'],
+    [/\bRegistry\b/i, 'Registry'],
+    [/AppLocker/i, 'AppLocker'],
+    [/Defender/i, 'Defender'],
+    [/Credential\s*Guard/i, 'Credential Guard'],
+    [/Windows\s*Ink/i, 'Windows Ink'],
+    [/\bWi-?Fi\b|Wireless/i, 'Wi-Fi'],
+];
+
+function matchTags(str, tags) {
+    if (!str) return;
+    for (const [re, tag] of TAG_RULES) {
+        if (re.test(str)) tags.add(tag);
+    }
+}
+
+function cleanDesc(v) {
+    return (v || '').replace(/<br\s*\/?>/gi, ' ').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+}
+
+// --- GPO content extraction with section tracking ---
+function extractGpoContent(html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const tags = new Set();
+    const segments = [];
+
+    function add(s, path) {
+        s = (s || '').replace(/\s+/g, ' ').trim();
+        if (s) segments.push({ str: s, path: path || '' });
+    }
+
+    // GPO header
+    const gn = doc.querySelector('.gponame');
+    if (gn) add(gn.textContent, 'General');
+    const dt = doc.getElementById('dtstamp');
+    if (dt) add(dt.textContent, 'General');
+
+    const summary = doc.querySelector('.gposummary');
+    if (summary) {
+        // Walk section hierarchy for visible text + section context
+        const crumbs = [];
+        const allDivs = summary.getElementsByTagName('div');
+        for (const div of allDivs) {
+            const cls = div.className || '';
+            const classes = cls.split(/\s+/);
+
+            // Section header (he0..he5 variants, NOT ending with 'i')
+            const hdrCls = classes.find(c => /^he\d/.test(c) && !/i$/.test(c));
+            if (hdrCls) {
+                const lvl = parseInt(hdrCls.charAt(2));
+                const titleEl = div.querySelector('.sectionTitle');
+                if (titleEl) {
+                    const title = titleEl.textContent.trim();
+                    crumbs.length = lvl;
+                    crumbs[lvl] = title;
+                    matchTags(title, tags);
+                }
+                continue;
+            }
+
+            // Content block (he2i, he4i, he5i)
+            if (classes.some(c => /^he\di$/.test(c))) {
+                const path = crumbs.filter(Boolean).join(' > ');
+                add(div.textContent, path);
+            }
+        }
+
+        // gpmc_ attributes (extra searchable content not in visible text)
+        summary.querySelectorAll('span.explainlink').forEach(el => {
+            const sp = el.getAttribute('gpmc_settingpath') || '';
+            const desc = el.getAttribute('gpmc_settingdescription') || '';
+            const sup = el.getAttribute('gpmc_supported') || '';
+            if (sp) { add(sp, sp); matchTags(sp, tags); }
+            if (desc) add(cleanDesc(desc), sp || 'Settings');
+            if (sup) add(sup, sp || 'Settings');
+        });
+    }
+
+    // Fallback for non-GPMC HTML
+    if (!segments.length) {
+        const body = doc.body;
+        if (body) {
+            body.querySelectorAll('script, style').forEach(el => el.remove());
+            add(body.textContent, '');
+        }
+    }
+
+    // Build flat text with section index
+    let text = '';
+    const sections = [];
+    for (const s of segments) {
+        if (!s.str) continue;
+        const start = text.length;
+        text += s.str + ' ';
+        sections.push({ start, end: start + s.str.length, path: s.path });
+    }
+    text = text.trimEnd();
+
+    return { text, sections, tags: [...tags] };
+}
+
+function findSection(sections, idx) {
+    for (const s of sections) {
+        if (idx >= s.start && idx < s.end) return s.path;
+    }
+    return '';
+}
+
+// --- App state ---
 const PAGE_SIZE = 50;
 let files = [];
 let results = [];
 let page = 0;
-let isSearching = false; // true = zoekresultaten, false = browse modus
+let isSearching = false;
+let allTags = {};
+let activeFilters = new Set();
 
 const $ = id => document.getElementById(id);
 const q = $('q');
@@ -124,12 +263,62 @@ const statusText = $('statusText');
 const statusRight = $('statusRight');
 const resultsDiv = $('results');
 
+// --- Filter system ---
+function getFilteredFiles() {
+    if (!activeFilters.size) return files;
+    return files.filter(f => f.tags.some(t => activeFilters.has(t)));
+}
+
+function buildFilters() {
+    allTags = {};
+    for (const f of files) {
+        for (const t of f.tags) {
+            allTags[t] = (allTags[t] || 0) + 1;
+        }
+    }
+    renderFilters();
+}
+
+function renderFilters() {
+    const container = $('filters');
+    const sorted = Object.entries(allTags)
+        .filter(([, c]) => c >= 2)
+        .sort((a, b) => b[1] - a[1]);
+
+    if (!sorted.length) { container.style.display = 'none'; return; }
+
+    let html = '';
+    if (activeFilters.size) {
+        html += '<span class="chip chip-clear" onclick="clearFilters()">Wis filters</span>';
+    }
+    for (const [tag, count] of sorted) {
+        const on = activeFilters.has(tag) ? ' on' : '';
+        html += `<span class="chip${on}" onclick="toggleFilter('${escAttr(tag)}')">${esc(tag)}<span class="cnt">${count}</span></span>`;
+    }
+    container.innerHTML = html;
+    container.style.display = 'flex';
+}
+
+function toggleFilter(tag) {
+    if (activeFilters.has(tag)) activeFilters.delete(tag);
+    else activeFilters.add(tag);
+    renderFilters();
+    if (q.value.trim()) doSearch();
+    else showAll();
+}
+
+function clearFilters() {
+    activeFilters.clear();
+    renderFilters();
+    if (q.value.trim()) doSearch();
+    else showAll();
+}
+
+// --- Controls ---
 $('btnRegex').onclick = function(){ this.classList.toggle('on'); doSearch(); };
 $('btnCase').onclick = function(){ this.classList.toggle('on'); doSearch(); };
-
 $('btnLoad').onclick = () => $('folderPicker').click();
 
-// Clear knop
 $('btnClear').onclick = function() {
     q.value = '';
     this.style.display = 'none';
@@ -137,6 +326,7 @@ $('btnClear').onclick = function() {
     q.focus();
 };
 
+// --- File loading ---
 $('folderPicker').onchange = async function() {
     const picked = Array.from(this.files).filter(f =>
         f.name.endsWith('.html') && !f.name.startsWith('._')
@@ -147,11 +337,13 @@ $('folderPicker').onchange = async function() {
     }
 
     files = [];
+    activeFilters.clear();
     $('progress').style.display = 'block';
     $('btnLoad').disabled = true;
     q.disabled = true;
     statusText.textContent = `Inlezen: 0 / ${picked.length}`;
     resultsDiv.innerHTML = '';
+    $('filters').style.display = 'none';
 
     for (let i = 0; i < picked.length; i++) {
         const f = picked[i];
@@ -170,14 +362,8 @@ $('folderPicker').onchange = async function() {
                 }
             }
 
-            let clean = text.replace(/<script[\s\S]*?<\/script>/gi, '');
-            clean = clean.replace(/<style[\s\S]*?<\/style>/gi, '');
-            clean = clean.replace(/<[^>]+>/g, ' ');
-            clean = clean.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
-                         .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ');
-            clean = clean.replace(/\s+/g, ' ').trim();
-
-            files.push({ name: f.name, text: clean, blob: f });
+            const result = extractGpoContent(text);
+            files.push({ name: f.name, text: result.text, sections: result.sections, tags: result.tags, blob: f });
         } catch(e) {}
 
         if ((i+1) % 50 === 0 || i === picked.length - 1) {
@@ -196,14 +382,18 @@ $('folderPicker').onchange = async function() {
     $('fileCount').textContent = `${files.length} bestanden geladen`;
     q.focus();
 
+    buildFilters();
     showAll();
 };
 
+// --- Browse & Search ---
 function showAll() {
     isSearching = false;
-    results = files.map(f => ({ name: f.name, matchCount: 0, snippets: [], blob: f.blob, preview: f.text.slice(0, 150) }));
+    const src = getFilteredFiles();
+    results = src.map(f => ({ name: f.name, matchCount: 0, snippets: [], blob: f.blob, preview: f.text.slice(0, 150) }));
     results.sort((a, b) => a.name.localeCompare(b.name));
-    statusText.textContent = `${results.length} GPO bestanden`;
+    const filterNote = activeFilters.size ? ' (gefilterd)' : '';
+    statusText.textContent = `${results.length} GPO bestanden${filterNote}`;
     statusRight.textContent = '';
     page = 0;
     renderPage();
@@ -211,7 +401,8 @@ function showAll() {
 
 function doSearch() {
     const query = q.value.trim();
-    if (!files.length) return;
+    const src = getFilteredFiles();
+    if (!src.length) return;
 
     if (!query) { showAll(); return; }
 
@@ -236,10 +427,10 @@ function doSearch() {
     }
 
     results = [];
-    for (const f of files) {
+    for (const f of src) {
         if (andCheck) {
-            const src = caseSens ? f.text : f.text.toLowerCase();
-            if (!andCheck.every(t => src.includes(t))) continue;
+            const s = caseSens ? f.text : f.text.toLowerCase();
+            if (!andCheck.every(t => s.includes(t))) continue;
         }
 
         re.lastIndex = 0;
@@ -258,7 +449,8 @@ function doSearch() {
                 let snip = f.text.slice(start, end);
                 if (start > 0) snip = '...' + snip;
                 if (end < f.text.length) snip += '...';
-                snippets.push(snip);
+                const section = findSection(f.sections, mt.idx);
+                snippets.push({ text: snip, section });
             }
             results.push({ name: f.name, matchCount: matches.length, snippets, blob: f.blob });
         }
@@ -267,13 +459,15 @@ function doSearch() {
     results.sort((a, b) => b.matchCount - a.matchCount);
 
     const elapsed = (performance.now() - t0).toFixed(1);
-    statusText.textContent = `${results.length} resultaten van ${files.length} bestanden`;
+    const filterNote = activeFilters.size ? ' (gefilterd)' : '';
+    statusText.textContent = `${results.length} resultaten van ${src.length} bestanden${filterNote}`;
     statusRight.textContent = elapsed + 'ms';
 
     page = 0;
     renderPage();
 }
 
+// --- Rendering ---
 function renderPage() {
     const query = q.value.trim();
     const useRegex = $('btnRegex').classList.contains('on');
@@ -294,18 +488,17 @@ function renderPage() {
         } catch(e) { hlRe = null; }
     }
 
-    // Pagina indicator
     const total = results.length;
     const rangeText = total > 0 ? `${start + 1}-${end} van ${total}` : '0';
 
     let html = '';
     for (const r of slice) {
         if (isSearching) {
-            // Zoek-modus: toon matches
             const snippetHtml = r.snippets.map(s => {
-                let h = esc(s);
+                let h = esc(s.text);
                 if (hlRe) h = h.replace(hlRe, '<mark>$1</mark>');
-                return h;
+                const sec = s.section ? `<div class="card-section">${esc(s.section)}</div>` : '';
+                return sec + h;
             }).join('\n');
 
             html += `<div class="card" onclick="openDetail('${escAttr(r.name)}')">
@@ -314,7 +507,6 @@ function renderPage() {
                 <div class="card-match">${snippetHtml}</div>
             </div>`;
         } else {
-            // Browse-modus: toon naam + preview
             html += `<div class="card" onclick="openDetail('${escAttr(r.name)}')">
                 <div class="card-name">${esc(r.name)}</div>
                 <div class="card-preview">${esc(r.preview || '')}</div>
@@ -341,7 +533,7 @@ function renderPage() {
     }
 
     statusRight.textContent = isSearching ? statusRight.textContent : rangeText;
-    if (!isSearching) statusText.textContent = `${total} GPO bestanden`;
+    if (!isSearching) statusText.textContent = `${total} GPO bestanden` + (activeFilters.size ? ' (gefilterd)' : '');
     else statusRight.textContent += `  |  ${rangeText}`;
 
     resultsDiv.innerHTML = html;
@@ -350,6 +542,7 @@ function renderPage() {
 
 function goPage(p) { page = p; renderPage(); }
 
+// --- Utilities ---
 function esc(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -357,6 +550,7 @@ function escAttr(s) {
     return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
 }
 
+// --- Detail panel ---
 function openDetail(name) {
     const f = files.find(x => x.name === name);
     if (!f) return;
@@ -384,7 +578,7 @@ function copyCode(btn) {
     });
 }
 
-// Live zoeken met debounce
+// --- Live search ---
 let debounce;
 q.addEventListener('input', () => {
     clearTimeout(debounce);
