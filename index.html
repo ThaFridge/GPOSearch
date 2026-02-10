@@ -35,6 +35,16 @@ mark{background:rgba(79,195,247,.3);color:#ffee58;border-radius:2px;padding:0 1p
 .welcome{text-align:center;padding:80px 24px;color:#a0a8c0}
 .welcome h2{color:#4fc3f7;margin-bottom:12px;font-size:24px}
 .welcome p{margin-bottom:8px;max-width:500px;margin-left:auto;margin-right:auto}
+.codebox{text-align:left;background:#0d1117;border:1px solid #2a3a5c;border-radius:8px;padding:16px 20px;margin:20px auto 0;max-width:720px;position:relative;font-family:'Cascadia Code','Fira Code','Consolas',monospace;font-size:13px;line-height:1.7;color:#c9d1d9;overflow-x:auto;white-space:pre}
+.codebox-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #2a3a5c}
+.codebox-label{font-size:12px;color:#4fc3f7;font-family:'Segoe UI',system-ui,sans-serif;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.codebox-copy{background:#1a2332;border:1px solid #2a3a5c;border-radius:5px;color:#a0a8c0;font-size:11px;cursor:pointer;padding:4px 10px;font-family:'Segoe UI',system-ui,sans-serif}
+.codebox-copy:hover{border-color:#4fc3f7;color:#4fc3f7}
+.codebox .comment{color:#6a737d}
+.codebox .cmd{color:#79c0ff}
+.codebox .param{color:#d2a8ff}
+.codebox .str{color:#a5d6ff}
+.codebox .var{color:#ffa657}
 .progress{width:100%;height:4px;background:#2a3a5c;border-radius:2px;margin-top:8px;overflow:hidden;display:none}
 .progress .fill{height:100%;background:#4fc3f7;border-radius:2px;transition:width .2s;width:0}
 .pagination{display:flex;justify-content:center;gap:6px;padding:16px}
@@ -73,12 +83,24 @@ mark{background:rgba(79,195,247,.3);color:#ffee58;border-radius:2px;padding:0 1p
 </div>
 
 <div id="results">
-    <div class="welcome">
+    <div class="welcome" id="welcome">
         <h2>GPO Search Tool</h2>
         <p>Doorzoek al je GPMC HTML-exports op keywords, policy namen, registry paden en meer.</p>
         <p>1. Klik <strong>"Map laden"</strong> en selecteer de <strong>GPO</strong> map</p>
         <p>2. Wacht tot alle bestanden ingelezen zijn</p>
         <p>3. Begin te typen om te zoeken</p>
+        <div class="codebox">
+            <div class="codebox-header">
+                <span class="codebox-label">PowerShell — GPO's exporteren als HTML</span>
+                <button class="codebox-copy" onclick="copyCode(this)" type="button">Kopieer</button>
+            </div><span class="comment"># Exporteer alle GPO's als losse HTML-bestanden naar C:\GPO-Export</span>
+<span class="var">$exportPath</span> = <span class="str">"C:\GPO-Export"</span>
+<span class="cmd">New-Item</span> <span class="param">-Path</span> <span class="var">$exportPath</span> <span class="param">-ItemType</span> Directory <span class="param">-Force</span>
+
+<span class="cmd">Get-GPO</span> <span class="param">-All</span> | <span class="cmd">ForEach-Object</span> {
+    <span class="var">$name</span> = <span class="var">$_</span>.DisplayName <span class="param">-replace</span> <span class="str">'[\\/:*?"&lt;&gt;|]'</span>, <span class="str">'_'</span>
+    <span class="cmd">Get-GPOReport</span> <span class="param">-Guid</span> <span class="var">$_</span>.Id <span class="param">-ReportType</span> Html <span class="param">-Path</span> <span class="str">"<span class="var">$exportPath</span>\<span class="var">$name</span>.html"</span>
+}</div>
     </div>
 </div>
 
@@ -351,6 +373,15 @@ function closeDetail() {
     const frame = $('detailFrame');
     URL.revokeObjectURL(frame.src);
     frame.src = '';
+}
+
+function copyCode(btn) {
+    const box = btn.closest('.codebox');
+    const text = box.textContent.replace(/^PowerShell — GPO's exporteren als HTML\s*Kopieer\s*/, '').trim();
+    navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = 'Gekopieerd!';
+        setTimeout(() => btn.textContent = 'Kopieer', 2000);
+    });
 }
 
 // Live zoeken met debounce
