@@ -5,11 +5,12 @@ A fast, client-side search tool for browsing and searching Group Policy Object (
 ## Features
 
 - **Full-text search** across all loaded GPO exports — search by keywords, policy names, registry paths, and more
+- **Exact phrase search** — use quotes for precise matching (e.g. `"edge blocklist"`)
 - **Quick filter chips** — automatically detected categories (BitLocker, Chrome, Firewall, Registry, etc.) let you narrow results with one click
 - **Section context** — each search result shows a breadcrumb path indicating *where* in the GPO the match was found (e.g. `User Configuration > Policies > Administrative Templates > Google Chrome`)
+- **Smart detail view** — click any search result to open the GPO report with all sections expanded, search terms highlighted, and auto-scrolled to the first match
 - **Regex support** — toggle regex mode for advanced pattern matching
 - **Case sensitivity** — toggle case-sensitive search on or off
-- **Detail view** — click any result to view the original GPO report in a side panel
 - **Live search** — results update as you type, with debounced input
 - **Pagination** — handles thousands of GPO files without performance issues
 
@@ -40,9 +41,11 @@ Click **"Map laden"** and select the folder containing your exported HTML files.
 ### 4. Search and filter
 
 - Type keywords in the search bar (e.g. `BitLocker`, `HKEY_LOCAL`, `USB`)
+- Use `"quotes"` for exact phrase matching (e.g. `"edge blocklist"`)
+- Multiple terms without quotes use AND logic — all words must be present
 - Use the filter chips that appear below the toolbar to narrow by category
 - Toggle `.*` for regex mode or `Aa` for case-sensitive search
-- Click any result card to view the full original GPO report
+- Click any result card to view the GPO report with matches highlighted
 
 ## Requirements
 

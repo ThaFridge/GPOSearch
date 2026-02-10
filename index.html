@@ -77,7 +77,7 @@ mark{background:rgba(79,195,247,.3);color:#ffee58;border-radius:2px;padding:0 1p
     <div class="search-row">
         <button class="btn-accent" id="btnLoad">Map laden</button>
         <div class="search-wrap">
-            <input type="text" id="q" placeholder="Zoek op keywords... (bijv. BitLocker, USB, Chrome, HKEY_LOCAL)" disabled>
+            <input type="text" id="q" placeholder="Zoek op keywords... (bijv. BitLocker, &quot;edge blocklist&quot;, HKEY_LOCAL)" disabled>
             <button class="clear" id="btnClear" type="button">&times;</button>
         </div>
         <button class="toggle" id="btnRegex" title="Regex aan/uit" disabled>.*</button>
@@ -111,7 +111,7 @@ mark{background:rgba(79,195,247,.3);color:#ffee58;border-radius:2px;padding:0 1p
 </div>
 
 <div class="footer">
-    <span>GPO Search Tool v1.1.1</span>
+    <span>GPO Search Tool v1.1.2</span>
     <a href="https://github.com/ThaFridge/GPOSearch" target="_blank">GitHub</a>
 </div>
 
@@ -399,6 +399,22 @@ function showAll() {
     renderPage();
 }
 
+// Parse query: supports "exact phrases" and loose words (AND logic)
+function parseQuery(input) {
+    const terms = [];
+    const re = /"([^"]+)"|(\S+)/g;
+    let m;
+    while (m = re.exec(input)) {
+        terms.push(m[1] || m[2]);
+    }
+    return terms.filter(Boolean);
+}
+
+function buildSearchRegex(terms, caseSens) {
+    const escaped = terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    return new RegExp(escaped.join('|'), caseSens ? 'g' : 'gi');
+}
+
 function doSearch() {
     const query = q.value.trim();
     const src = getFilteredFiles();
@@ -411,15 +427,15 @@ function doSearch() {
     const caseSens = $('btnCase').classList.contains('on');
     const t0 = performance.now();
 
-    let re;
+    let re, andCheck;
     try {
         if (useRegex) {
             re = new RegExp(query, caseSens ? 'g' : 'gi');
         } else {
-            const terms = query.split(/\s+/).filter(Boolean);
-            const escaped = terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-            re = new RegExp(escaped.join('|'), caseSens ? 'g' : 'gi');
-            var andCheck = terms.map(t => caseSens ? t : t.toLowerCase());
+            const terms = parseQuery(query);
+            if (!terms.length) { showAll(); return; }
+            re = buildSearchRegex(terms, caseSens);
+            andCheck = terms.map(t => caseSens ? t : t.toLowerCase());
         }
     } catch(e) {
         resultsDiv.innerHTML = `<div class="welcome"><p style="color:#ef5350">Ongeldige regex: ${esc(e.message)}</p></div>`;
@@ -482,8 +498,11 @@ function renderPage() {
             if (useRegex) {
                 hlRe = new RegExp('(' + query + ')', caseSens ? 'g' : 'gi');
             } else {
-                const terms = query.split(/\s+/).filter(Boolean).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-                if (terms.length) hlRe = new RegExp('(' + terms.join('|') + ')', caseSens ? 'g' : 'gi');
+                const terms = parseQuery(query);
+                if (terms.length) {
+                    const base = buildSearchRegex(terms, caseSens);
+                    hlRe = new RegExp('(' + base.source + ')', base.flags);
+                }
             }
         } catch(e) { hlRe = null; }
     }
@@ -558,10 +577,10 @@ function highlightInFrame(fdoc, query, useRegex, caseSens) {
         if (useRegex) {
             re = new RegExp('(' + query + ')', flags);
         } else {
-            const terms = query.split(/\s+/).filter(Boolean);
-            const escaped = terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-            if (!escaped.length) return;
-            re = new RegExp('(' + escaped.join('|') + ')', flags);
+            const terms = parseQuery(query);
+            if (!terms.length) return;
+            re = buildSearchRegex(terms, caseSens);
+            re = new RegExp('(' + re.source + ')', re.flags);
         }
     } catch(e) { return; }
 
