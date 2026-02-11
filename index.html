@@ -39,6 +39,7 @@ button:disabled{opacity:.35;cursor:default}
 .card:hover{border-color:#4fc3f7}
 .card-name{font-size:14px;font-weight:600;margin-bottom:4px}
 .card-meta{font-size:12px;color:#a0a8c0;margin-bottom:6px}
+.card-links{font-size:11px;color:#4fc3f7;opacity:.6;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card-preview{font-size:12px;color:#666;line-height:1.5;max-height:36px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .card-match{font-size:12px;color:#ccc;line-height:1.6;background:#141a2e;border-radius:4px;padding:6px 10px;max-height:160px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
 .card-section{font-size:10px;color:#4fc3f7;opacity:.65;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -114,7 +115,7 @@ mark{background:rgba(79,195,247,.3);color:#ffee58;border-radius:2px;padding:0 1p
 </div>
 
 <div class="footer">
-    <span>GPO Search Tool v1.1.4</span>
+    <span>GPO Search Tool v1.1.5</span>
     <a href="https://github.com/ThaFridge/GPOSearch" target="_blank">GitHub</a>
 </div>
 
@@ -294,7 +295,28 @@ function extractGpoContent(html) {
     }
     text = text.trimEnd();
 
-    return { text, sections, tags: [...tags] };
+    // Extract GPO links (OUs) from the Links section table
+    const links = [];
+    const allHeaders = root ? root.querySelectorAll('.sectionTitle') : [];
+    for (const hdr of allHeaders) {
+        if (hdr.textContent.trim() !== 'Links') continue;
+        // Find the parent header div, then the next sibling content div
+        let headerDiv = hdr.closest('div');
+        if (!headerDiv) break;
+        let next = headerDiv.nextElementSibling;
+        if (!next) break;
+        const rows = next.querySelectorAll('table tr');
+        for (let r = 1; r < rows.length; r++) {
+            const cells = rows[r].querySelectorAll('td');
+            if (cells.length >= 1) {
+                const loc = cells[0].textContent.trim();
+                if (loc && loc !== 'Location') links.push(loc);
+            }
+        }
+        break;
+    }
+
+    return { text, sections, tags: [...tags], links };
 }
 
 function findSection(sections, idx) {
@@ -425,7 +447,7 @@ $('folderPicker').onchange = async function() {
             }
 
             const result = extractGpoContent(text);
-            files.push({ name: f.name, text: result.text, sections: result.sections, tags: result.tags, blob: f });
+            files.push({ name: f.name, text: result.text, sections: result.sections, tags: result.tags, links: result.links, blob: f });
         } catch(e) {}
 
         if ((i+1) % 50 === 0 || i === picked.length - 1) {
@@ -452,7 +474,7 @@ $('folderPicker').onchange = async function() {
 function showAll() {
     isSearching = false;
     const src = getFilteredFiles();
-    results = src.map(f => ({ name: f.name, matchCount: 0, snippets: [], blob: f.blob, preview: f.text.slice(0, 150) }));
+    results = src.map(f => ({ name: f.name, matchCount: 0, snippets: [], blob: f.blob, links: f.links, preview: f.text.slice(0, 150) }));
     results.sort((a, b) => a.name.localeCompare(b.name));
     const filterNote = activeFilters.size ? ' (gefilterd)' : '';
     statusText.textContent = `${results.length} GPO bestanden${filterNote}`;
@@ -530,7 +552,7 @@ function doSearch() {
                 const section = findSection(f.sections, mt.idx);
                 snippets.push({ text: snip, section });
             }
-            results.push({ name: f.name, matchCount: matches.length, snippets, blob: f.blob });
+            results.push({ name: f.name, matchCount: matches.length, snippets, blob: f.blob, links: f.links });
         }
     }
 
@@ -574,6 +596,7 @@ function renderPage() {
 
     let html = '';
     for (const r of slice) {
+        const linksHtml = r.links && r.links.length ? `<div class="card-links">Linked to: ${esc(r.links.join(', '))}</div>` : '';
         if (isSearching) {
             const snippetHtml = r.snippets.map(s => {
                 let h = esc(s.text);
@@ -584,12 +607,14 @@ function renderPage() {
 
             html += `<div class="card" onclick="openDetail('${escAttr(r.name)}')">
                 <div class="card-name">${hlRe ? esc(r.name).replace(hlRe, '<mark>$1</mark>') : esc(r.name)}</div>
+                ${linksHtml}
                 <div class="card-meta">${r.matchCount} match${r.matchCount !== 1 ? 'es' : ''}</div>
                 <div class="card-match">${snippetHtml}</div>
             </div>`;
         } else {
             html += `<div class="card" onclick="openDetail('${escAttr(r.name)}')">
                 <div class="card-name">${esc(r.name)}</div>
+                ${linksHtml}
                 <div class="card-preview">${esc(r.preview || '')}</div>
             </div>`;
         }
