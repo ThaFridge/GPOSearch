@@ -31,6 +31,10 @@ button:disabled{opacity:.35;cursor:default}
 .chip{padding:3px 10px;background:#0f3460;border:1px solid #2a3a5c;border-radius:14px;color:#a0a8c0;font-size:11px;cursor:pointer;white-space:nowrap;transition:all .15s}
 .chip:hover{border-color:#4fc3f7;color:#4fc3f7}
 .chip.on{background:#1a3a5c;border-color:#4fc3f7;color:#4fc3f7}
+.chip.ou{background:#1a2e1a;border-color:#2a4c2a;color:#81c784}
+.chip.ou:hover{border-color:#81c784;color:#a5d6a7}
+.chip.ou.on{background:#1a3a1a;border-color:#81c784;color:#a5d6a7}
+.filter-label{font-size:11px;color:#666;font-weight:600;margin-right:2px}
 .chip .cnt{opacity:.5;margin-left:3px;font-size:10px}
 .chip-clear{color:#ef5350;border-color:#3a2020}
 .chip-clear:hover{border-color:#ef5350;color:#ef5350}
@@ -98,6 +102,7 @@ mark{background:rgba(79,195,247,.3);color:#ffee58;border-radius:2px;padding:0 1p
 </div>
 
 <div id="filters" class="filters"></div>
+<div id="ouFilters" class="filters"></div>
 
 <div id="results">
     <div class="welcome" id="welcome">
@@ -115,7 +120,7 @@ mark{background:rgba(79,195,247,.3);color:#ffee58;border-radius:2px;padding:0 1p
 </div>
 
 <div class="footer">
-    <span>GPO Search Tool v1.1.5</span>
+    <span>GPO Search Tool v1.1.6</span>
     <a href="https://github.com/ThaFridge/GPOSearch" target="_blank">GitHub</a>
 </div>
 
@@ -334,6 +339,8 @@ let page = 0;
 let isSearching = false;
 let allTags = {};
 let activeFilters = new Set();
+let allOUs = {};
+let activeOUFilters = new Set();
 
 const $ = id => document.getElementById(id);
 const q = $('q');
@@ -343,18 +350,27 @@ const resultsDiv = $('results');
 
 // --- Filter system ---
 function getFilteredFiles() {
-    if (!activeFilters.size) return files;
-    return files.filter(f => f.tags.some(t => activeFilters.has(t)));
+    if (!activeFilters.size && !activeOUFilters.size) return files;
+    return files.filter(f => {
+        const tagOk = !activeFilters.size || f.tags.some(t => activeFilters.has(t));
+        const ouOk = !activeOUFilters.size || f.links.some(l => activeOUFilters.has(l));
+        return tagOk && ouOk;
+    });
 }
 
 function buildFilters() {
     allTags = {};
+    allOUs = {};
     for (const f of files) {
         for (const t of f.tags) {
             allTags[t] = (allTags[t] || 0) + 1;
         }
+        for (const l of f.links) {
+            allOUs[l] = (allOUs[l] || 0) + 1;
+        }
     }
     renderFilters();
+    renderOUFilters();
 }
 
 function renderFilters(filterQuery) {
@@ -398,6 +414,46 @@ function clearFilters() {
     else showAll();
 }
 
+function renderOUFilters(filterQuery) {
+    const container = $('ouFilters');
+    const sorted = Object.entries(allOUs).sort((a, b) => b[1] - a[1]);
+
+    if (!sorted.length) { container.style.display = 'none'; return; }
+
+    const fq = (filterQuery || '').toLowerCase();
+    let html = `<span class="filter-label">OU:</span><input type="text" class="filter-search" id="ouFilterQ" placeholder="Filter OUs..." value="${esc(filterQuery || '')}" oninput="renderOUFilters(this.value)">`;
+    if (activeOUFilters.size) {
+        html += '<span class="chip chip-clear" onclick="clearOUFilters()">Wis OU filters</span>';
+    }
+    let shown = 0;
+    for (const [ou, count] of sorted) {
+        if (fq && !ou.toLowerCase().includes(fq)) continue;
+        const on = activeOUFilters.has(ou) ? ' on' : '';
+        html += `<span class="chip ou${on}" onclick="toggleOUFilter('${escAttr(ou)}')">${esc(ou)}<span class="cnt">${count}</span></span>`;
+        shown++;
+    }
+    if (fq && !shown) html += '<span style="font-size:11px;color:#555">Geen OUs gevonden</span>';
+    container.innerHTML = html;
+    container.style.display = 'flex';
+    const inp = $('ouFilterQ');
+    if (inp && fq !== undefined) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+}
+
+function toggleOUFilter(ou) {
+    if (activeOUFilters.has(ou)) activeOUFilters.delete(ou);
+    else activeOUFilters.add(ou);
+    renderOUFilters();
+    if (q.value.trim()) doSearch();
+    else showAll();
+}
+
+function clearOUFilters() {
+    activeOUFilters.clear();
+    renderOUFilters();
+    if (q.value.trim()) doSearch();
+    else showAll();
+}
+
 // --- Controls ---
 $('btnRegex').onclick = function(){ this.classList.toggle('on'); doSearch(); };
 $('btnCase').onclick = function(){ this.classList.toggle('on'); doSearch(); };
@@ -422,12 +478,14 @@ $('folderPicker').onchange = async function() {
 
     files = [];
     activeFilters.clear();
+    activeOUFilters.clear();
     $('progress').style.display = 'block';
     $('btnLoad').disabled = true;
     q.disabled = true;
     statusText.textContent = `Inlezen: 0 / ${picked.length}`;
     resultsDiv.innerHTML = '';
     $('filters').style.display = 'none';
+    $('ouFilters').style.display = 'none';
 
     for (let i = 0; i < picked.length; i++) {
         const f = picked[i];
@@ -476,7 +534,7 @@ function showAll() {
     const src = getFilteredFiles();
     results = src.map(f => ({ name: f.name, matchCount: 0, snippets: [], blob: f.blob, links: f.links, preview: f.text.slice(0, 150) }));
     results.sort((a, b) => a.name.localeCompare(b.name));
-    const filterNote = activeFilters.size ? ' (gefilterd)' : '';
+    const filterNote = (activeFilters.size || activeOUFilters.size) ? ' (gefilterd)' : '';
     statusText.textContent = `${results.length} GPO bestanden${filterNote}`;
     statusRight.textContent = '';
     page = 0;
@@ -559,7 +617,7 @@ function doSearch() {
     results.sort((a, b) => b.matchCount - a.matchCount);
 
     const elapsed = (performance.now() - t0).toFixed(1);
-    const filterNote = activeFilters.size ? ' (gefilterd)' : '';
+    const filterNote = (activeFilters.size || activeOUFilters.size) ? ' (gefilterd)' : '';
     statusText.textContent = `${results.length} resultaten van ${src.length} bestanden${filterNote}`;
     statusRight.textContent = elapsed + 'ms';
 
@@ -639,7 +697,7 @@ function renderPage() {
     }
 
     statusRight.textContent = isSearching ? statusRight.textContent : rangeText;
-    if (!isSearching) statusText.textContent = `${total} GPO bestanden` + (activeFilters.size ? ' (gefilterd)' : '');
+    if (!isSearching) statusText.textContent = `${total} GPO bestanden` + ((activeFilters.size || activeOUFilters.size) ? ' (gefilterd)' : '');
     else statusRight.textContent += `  |  ${rangeText}`;
 
     resultsDiv.innerHTML = html;
