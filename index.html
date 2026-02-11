@@ -25,6 +25,9 @@ button:disabled{opacity:.35;cursor:default}
 .toggle.on{background:#0f3460;border-color:#4fc3f7;color:#4fc3f7}
 .status-bar{padding:8px 24px;background:#16213e;border-bottom:1px solid #2a3a5c;font-size:13px;color:#a0a8c0;display:flex;justify-content:space-between;align-items:center}
 .filters{padding:6px 24px;background:#141e33;border-bottom:1px solid #2a3a5c;display:none;flex-wrap:wrap;gap:6px;align-items:center}
+.filter-search{padding:3px 10px;background:#1a1a2e;border:1px solid #2a3a5c;border-radius:14px;color:#e0e0e0;font-size:11px;outline:none;width:120px}
+.filter-search:focus{border-color:#4fc3f7}
+.filter-search::placeholder{color:#555}
 .chip{padding:3px 10px;background:#0f3460;border:1px solid #2a3a5c;border-radius:14px;color:#a0a8c0;font-size:11px;cursor:pointer;white-space:nowrap;transition:all .15s}
 .chip:hover{border-color:#4fc3f7;color:#4fc3f7}
 .chip.on{background:#1a3a5c;border-color:#4fc3f7;color:#4fc3f7}
@@ -111,7 +114,7 @@ mark{background:rgba(79,195,247,.3);color:#ffee58;border-radius:2px;padding:0 1p
 </div>
 
 <div class="footer">
-    <span>GPO Search Tool v1.1.3</span>
+    <span>GPO Search Tool v1.1.4</span>
     <a href="https://github.com/ThaFridge/GPOSearch" target="_blank">GitHub</a>
 </div>
 
@@ -125,27 +128,81 @@ mark{background:rgba(79,195,247,.3);color:#ffee58;border-radius:2px;padding:0 1p
 <script>
 // --- Tag detection rules ---
 const TAG_RULES = [
+    // Security & Identity
     [/BitLocker/i, 'BitLocker'],
-    [/Google\s*Chrome/i, 'Chrome'],
-    [/Microsoft\s*Edge/i, 'Edge'],
-    [/Firewall/i, 'Firewall'],
-    [/OneDrive/i, 'OneDrive'],
-    [/Internet\s*Explorer/i, 'IE'],
-    [/Windows\s*Update/i, 'Windows Update'],
-    [/Remote\s*Desktop/i, 'Remote Desktop'],
-    [/Removable\s*Storage/i, 'USB'],
-    [/Screen\s*Saver/i, 'Screensaver'],
-    [/\bZoom\b/i, 'Zoom'],
-    [/PowerShell/i, 'PowerShell'],
     [/\bLAPS\b/, 'LAPS'],
-    [/\bVPN\b|AlwaysOnVPN/i, 'VPN'],
-    [/\bPrinter/i, 'Printers'],
-    [/\bRegistry\b/i, 'Registry'],
+    [/Credential\s*Guard/i, 'Credential Guard'],
+    [/Device\s*Guard/i, 'Device Guard'],
+    [/Windows\s*Hello/i, 'Windows Hello'],
+    [/\bUAC\b|User\s*Account\s*Control/i, 'UAC'],
     [/AppLocker/i, 'AppLocker'],
     [/Defender/i, 'Defender'],
-    [/Credential\s*Guard/i, 'Credential Guard'],
+    [/Firewall/i, 'Firewall'],
+    [/\bSmartScreen/i, 'SmartScreen'],
+    [/Exploit\s*(Guard|Protection)/i, 'Exploit Protection'],
+    [/Attack\s*Surface/i, 'Attack Surface Reduction'],
+    [/Audit\s*(Policy|ing|\s*Sub)/i, 'Auditing'],
+    [/Password\s*(Policy|Length|Age|Complex|History)/i, 'Password Policy'],
+    [/Account\s*Lockout/i, 'Account Lockout'],
+    [/Kerberos/i, 'Kerberos'],
+    [/\bNTLM\b/i, 'NTLM'],
+    [/\bSSL\b|\bTLS\b|Cipher\s*Suite/i, 'SSL/TLS'],
+    [/\bCertificat/i, 'Certificates'],
+    // Browsers
+    [/Google\s*Chrome/i, 'Chrome'],
+    [/Microsoft\s*Edge/i, 'Edge'],
+    [/Internet\s*Explorer/i, 'IE'],
+    [/\bFirefox\b/i, 'Firefox'],
+    // Microsoft Apps & Services
+    [/OneDrive/i, 'OneDrive'],
+    [/\bTeams\b/i, 'Teams'],
+    [/Microsoft\s*Office|Office\s*\d{2,4}|\b(Word|Excel|PowerPoint|Outlook)\b/i, 'Office'],
+    [/SharePoint/i, 'SharePoint'],
+    // Remote & Virtualization
+    [/Remote\s*Desktop|\bRDP\b|\bRDS\b/i, 'Remote Desktop'],
+    [/FSLogix/i, 'FSLogix'],
+    [/\bCitrix\b/i, 'Citrix'],
+    [/\bVMware\b|Horizon/i, 'VMware'],
+    [/\bHyper-?V\b/i, 'Hyper-V'],
+    [/\bVPN\b|AlwaysOnVPN|Always\s*On\s*VPN|DirectAccess/i, 'VPN'],
+    // Windows Components
+    [/Windows\s*Update|\bWSUS\b|WUServer/i, 'Windows Update'],
     [/Windows\s*Ink/i, 'Windows Ink'],
+    [/Windows\s*Store|Microsoft\s*Store/i, 'Windows Store'],
+    [/\bCortana\b/i, 'Cortana'],
+    [/\bCopilot\b/i, 'Copilot'],
+    [/Telemetry|DiagTrack|Connected\s*User\s*Experience/i, 'Telemetry'],
+    [/Screen\s*Saver/i, 'Screensaver'],
+    [/\bWinRM\b|Windows\s*Remote\s*Management/i, 'WinRM'],
+    [/PowerShell/i, 'PowerShell'],
+    [/Event\s*Log/i, 'Event Log'],
+    // Networking
     [/\bWi-?Fi\b|Wireless/i, 'Wi-Fi'],
+    [/\bDNS\b/i, 'DNS'],
+    [/\bDHCP\b/i, 'DHCP'],
+    [/\bSMB\b|Server\s*Message\s*Block/i, 'SMB'],
+    [/\bProxy\b|PAC\s*File|AutoConfig/i, 'Proxy'],
+    [/\b802\.1x\b|Network\s*Access\s*Protection/i, '802.1x'],
+    // Devices & Storage
+    [/Removable\s*Storage/i, 'USB'],
+    [/\bPrinter/i, 'Printers'],
+    [/Drive\s*Map|Mapped\s*Drive/i, 'Drive Mapping'],
+    // User Environment
+    [/Folder\s*Redirect/i, 'Folder Redirection'],
+    [/Roaming\s*Profile/i, 'Roaming Profiles'],
+    [/Logon\s*Script|Startup\s*Script|Shutdown\s*Script/i, 'Scripts'],
+    [/Desktop\s*Wallpaper|Desktop\s*Background/i, 'Wallpaper'],
+    [/Start\s*Menu|Start\s*Layout/i, 'Start Menu'],
+    [/Taskbar/i, 'Taskbar'],
+    // Management Tools
+    [/\bSCCM\b|\bMECM\b|ConfigMgr|Configuration\s*Manager/i, 'SCCM/MECM'],
+    [/\bIntune\b|MDM.*Policy/i, 'Intune'],
+    // Third-party
+    [/\bZoom\b/i, 'Zoom'],
+    [/\bAdobe\b|Acrobat/i, 'Adobe'],
+    [/\bJava\b|JRE|JDK/i, 'Java'],
+    // General
+    [/\bRegistry\b/i, 'Registry'],
 ];
 
 function matchTags(str, tags) {
@@ -278,24 +335,30 @@ function buildFilters() {
     renderFilters();
 }
 
-function renderFilters() {
+function renderFilters(filterQuery) {
     const container = $('filters');
-    const sorted = Object.entries(allTags)
-        .filter(([, c]) => c >= 2)
-        .sort((a, b) => b[1] - a[1]);
+    const sorted = Object.entries(allTags).sort((a, b) => b[1] - a[1]);
 
     if (!sorted.length) { container.style.display = 'none'; return; }
 
-    let html = '';
+    const fq = (filterQuery || '').toLowerCase();
+    let html = `<input type="text" class="filter-search" id="filterQ" placeholder="Filter tags..." value="${esc(filterQuery || '')}" oninput="renderFilters(this.value)">`;
     if (activeFilters.size) {
         html += '<span class="chip chip-clear" onclick="clearFilters()">Wis filters</span>';
     }
+    let shown = 0;
     for (const [tag, count] of sorted) {
+        if (fq && !tag.toLowerCase().includes(fq)) continue;
         const on = activeFilters.has(tag) ? ' on' : '';
         html += `<span class="chip${on}" onclick="toggleFilter('${escAttr(tag)}')">${esc(tag)}<span class="cnt">${count}</span></span>`;
+        shown++;
     }
+    if (fq && !shown) html += '<span style="font-size:11px;color:#555">Geen tags gevonden</span>';
     container.innerHTML = html;
     container.style.display = 'flex';
+    // Restore focus to filter input after re-render
+    const inp = $('filterQ');
+    if (inp && fq !== undefined) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
 }
 
 function toggleFilter(tag) {
